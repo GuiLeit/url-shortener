@@ -1,0 +1,1 @@
+-- Cassandra schema — populated in Step 2 (Docker Compose skeleton)

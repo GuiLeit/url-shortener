@@ -1,0 +1,2 @@
+# Docker Compose services — populated in Step 2 (Docker Compose skeleton)
+version: "3.9"
