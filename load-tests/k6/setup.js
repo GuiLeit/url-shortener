@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost';
-const SEED_COUNT = parseInt(__ENV.SEED_COUNT || '200');
+const SEED_COUNT = parseInt(__ENV.SEED_COUNT || '200', 10);
 
 export const options = {
   vus: 1,
@@ -38,7 +38,11 @@ export default function () {}
 
 // k6 passes setup()'s return value as data.setup (since k6 v0.38).
 export function handleSummary(data) {
-  const codes = (data && data.setup) ? data.setup : [];
+  // /scripts/ maps to load-tests/k6/ via Docker volume mount (-v $PWD/load-tests/k6:/scripts)
+  const codes = data.setup || [];
+  if (codes.length === 0) {
+    console.error('No shortcodes collected — all seed requests may have failed');
+  }
   return {
     '/scripts/shortcodes.json': JSON.stringify(codes),
     stdout: `\nWrote ${codes.length} shortcodes → /scripts/shortcodes.json\n`,
