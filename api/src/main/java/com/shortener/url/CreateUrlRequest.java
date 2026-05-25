@@ -8,7 +8,7 @@ import org.hibernate.validator.constraints.URL;
 public class CreateUrlRequest {
 
     @NotBlank
-    @URL
+    @URL(regexp = "^https?://.*")
     @Size(max = 2048)
     @NonRecursiveUrl
     private String url;

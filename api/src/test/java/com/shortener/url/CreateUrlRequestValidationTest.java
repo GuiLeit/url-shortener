@@ -37,10 +37,10 @@ class CreateUrlRequestValidationTest {
     }
 
     @Test
-    void invalid_url_format_returns_400() throws Exception {
+    void ftp_scheme_returns_400() throws Exception {
         mvc.perform(post("/api/v1/urls")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"url\":\"not a valid url\"}"))
+                .content("{\"url\":\"ftp://example.com/file.txt\"}"))
             .andExpect(status().isBadRequest());
     }
 
