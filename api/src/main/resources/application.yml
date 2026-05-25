@@ -16,6 +16,10 @@ spring:
     port: 5672
     username: guest
     password: guest
+    listener:
+      simple:
+        acknowledge-mode: manual
+        default-requeue-rejected: false
   jackson:
     property-naming-strategy: SNAKE_CASE
 
