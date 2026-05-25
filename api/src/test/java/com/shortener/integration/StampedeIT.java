@@ -69,6 +69,6 @@ class StampedeIT extends AbstractIT {
         }
 
         assertThat(redisTemplate.hasKey("url:cache:" + CODE)).isTrue();
-        verify(urlRepositorySpy, atMost(THREADS)).findById(eq(CODE));
+        verify(urlRepositorySpy, atMost(3)).findById(eq(CODE));
     }
 }
