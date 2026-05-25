@@ -1,0 +1,47 @@
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:docker}
+  cassandra:
+    contact-points: cassandra
+    port: 9042
+    keyspace-name: shortener
+    local-datacenter: datacenter1
+    schema-action: none
+  data:
+    redis:
+      host: redis
+      port: 6379
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+
+shortener:
+  secret-key: ${SHORTENER_SECRET_KEY:change-me-in-prod}
+  base-url: ${BASE_URL:http://localhost}
+  cache-ttl-seconds: 604800
+  negcache-ttl-seconds: 60
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: url-shortener
+      instance: ${HOSTNAME:unknown}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  cassandra:
+    contact-points: localhost
+  data:
+    redis:
+      host: localhost
+  rabbitmq:
+    host: localhost
