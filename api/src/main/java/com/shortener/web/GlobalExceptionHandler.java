@@ -20,4 +20,10 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
         return new ErrorResponse("Validation failed", errors);
     }
+
+    @ExceptionHandler(NotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleNotFound(NotFoundException ex) {
+        return new ErrorResponse(ex.getMessage(), List.of());
+    }
 }
