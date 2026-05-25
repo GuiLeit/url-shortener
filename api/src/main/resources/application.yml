@@ -16,6 +16,8 @@ spring:
     port: 5672
     username: guest
     password: guest
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 
 shortener:
   secret-key: ${SHORTENER_SECRET_KEY:change-me-in-prod}
