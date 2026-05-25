@@ -72,4 +72,16 @@ class CreateUrlRequestValidationTest {
                 .content("{\"url\":\"https://example.com/page\"}"))
             .andExpect(status().isCreated());
     }
+
+    @Test
+    void valid_http_url_returns_201() throws Exception {
+        when(urlService.create(anyString())).thenReturn(
+            new CreateUrlResponse("Ab3c", "http://localhost/Ab3c",
+                "http://example.com/page", Instant.now()));
+
+        mvc.perform(post("/api/v1/urls")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"url\":\"http://example.com/page\"}"))
+            .andExpect(status().isCreated());
+    }
 }
