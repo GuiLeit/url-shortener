@@ -1,6 +1,7 @@
 package com.shortener.url;
 
 import com.shortener.encoding.Base62Encoder;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,12 +24,14 @@ class UrlServiceTest {
     @Mock UrlRepository urlRepository;
     @Mock Base62Encoder encoder;
 
+    SimpleMeterRegistry meterRegistry;
     UrlService service;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        service = new UrlService(redisTemplate, urlRepository, encoder, "http://localhost", 604800L);
+        service = new UrlService(redisTemplate, urlRepository, encoder, "http://localhost", 604800L, meterRegistry);
     }
 
     @Test
@@ -54,5 +57,15 @@ class UrlServiceTest {
         assertEquals("http://localhost/Hk2p", response.getShortUrl());
         assertEquals("https://example.com/path", response.getLongUrl());
         assertNotNull(response.getCreatedAt());
+    }
+
+    @Test
+    void create_increments_urls_created_counter() {
+        when(valueOps.increment("url:counter")).thenReturn(250000L);
+        when(encoder.encode(250000L)).thenReturn("Hk2p");
+
+        service.create("https://example.com/path");
+
+        assertEquals(1.0, meterRegistry.counter("shortener.urls.created").count());
     }
 }
