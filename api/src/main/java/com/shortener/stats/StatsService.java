@@ -2,6 +2,8 @@ package com.shortener.stats;
 
 import com.shortener.url.UrlRepository;
 import com.shortener.web.NotFoundException;
+import org.springframework.data.cassandra.core.CassandraOperations;
+import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.data.cassandra.core.cql.CqlOperations;
 import org.springframework.stereotype.Service;
 
@@ -19,9 +21,9 @@ public class StatsService {
     private final UrlRepository urlRepository;
     private final CqlOperations cqlOperations;
 
-    public StatsService(UrlRepository urlRepository, CqlOperations cqlOperations) {
+    public StatsService(UrlRepository urlRepository, CassandraOperations cassandraOperations) {
         this.urlRepository = urlRepository;
-        this.cqlOperations = cqlOperations;
+        this.cqlOperations = ((CassandraTemplate) cassandraOperations).getCqlOperations();
     }
 
     public StatsResponse getStats(String shortCode, LocalDate from, LocalDate to) {
