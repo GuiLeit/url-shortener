@@ -33,4 +33,10 @@ public class GlobalExceptionHandler {
     public ErrorResponse handleConstraintViolation(ConstraintViolationException ex) {
         return new ErrorResponse("Short code not found", List.of());
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleBadRequest(IllegalArgumentException ex) {
+        return new ErrorResponse(ex.getMessage(), List.of());
+    }
 }
