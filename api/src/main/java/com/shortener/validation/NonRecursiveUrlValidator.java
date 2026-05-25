@@ -18,6 +18,7 @@ public class NonRecursiveUrlValidator implements ConstraintValidator<NonRecursiv
         if (value == null || value.isBlank()) return true;
         try {
             String inputHost = URI.create(value).getHost();
+            if (inputHost == null) return false;
             String shortenerHost = URI.create(baseUrl).getHost();
             return !inputHost.equalsIgnoreCase(shortenerHost);
         } catch (Exception e) {

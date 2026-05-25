@@ -28,7 +28,7 @@ class UrlServiceTest {
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        service = new UrlService(redisTemplate, urlRepository, encoder, "http://localhost");
+        service = new UrlService(redisTemplate, urlRepository, encoder, "http://localhost", 604800L);
     }
 
     @Test
