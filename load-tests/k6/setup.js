@@ -19,7 +19,7 @@ export function setup() {
     );
     if (res.status === 201 && res.body) {
       try {
-        const sc = JSON.parse(res.body).shortCode;
+        const sc = JSON.parse(res.body).short_code;
         if (sc) codes.push(sc);
       } catch (_) {
         console.warn(`Seed ${i}: could not parse response body`);
