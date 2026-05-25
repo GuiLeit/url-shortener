@@ -3,6 +3,7 @@ package com.shortener.consumer;
 import com.datastax.oss.driver.api.core.cql.Statement;
 import com.rabbitmq.client.Channel;
 import com.shortener.event.AccessEvent;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,8 +15,9 @@ import org.springframework.retry.support.RetryTemplate;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -26,13 +28,14 @@ class AccessLogConsumerTest {
     @Mock CassandraOperations cassandraOperations;
     @Mock Channel channel;
 
+    SimpleMeterRegistry meterRegistry;
     AccessLogConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        // Minimal backoff so tests don't sleep (0 is invalid, 1ms is effectively instant)
+        meterRegistry = new SimpleMeterRegistry();
         RetryTemplate retryTemplate = RetryTemplate.builder().maxAttempts(3).fixedBackoff(1).build();
-        consumer = new AccessLogConsumer(accessLogRepository, cassandraOperations, retryTemplate);
+        consumer = new AccessLogConsumer(accessLogRepository, cassandraOperations, retryTemplate, meterRegistry);
     }
 
     @Test
@@ -80,5 +83,17 @@ class AccessLogConsumerTest {
 
         verify(accessLogRepository, times(3)).save(any());
         verify(channel).basicNack(3L, false, false);
+    }
+
+    @Test
+    void lag_gauge_is_positive_after_successful_consume() throws IOException {
+        // Event created 2 seconds ago
+        Instant requestTime = Instant.now().minusSeconds(2);
+        AccessEvent event = new AccessEvent("abc1", requestTime, "1.2.3.4", "ua", null);
+
+        consumer.consume(event, channel, 1L);
+
+        double lagSeconds = meterRegistry.get("shortener.log.consumer.lag").timeGauge().value(TimeUnit.SECONDS);
+        assertTrue(lagSeconds >= 2.0, "Expected lag >= 2s, got " + lagSeconds);
     }
 }

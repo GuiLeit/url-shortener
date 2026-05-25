@@ -4,6 +4,8 @@ import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.rabbitmq.client.Channel;
 import com.shortener.event.AccessEvent;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.TimeGauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -15,8 +17,12 @@ import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class AccessLogConsumer {
@@ -28,13 +34,19 @@ public class AccessLogConsumer {
     private final AccessLogRepository accessLogRepository;
     private final CassandraOperations cassandraOperations;
     private final RetryTemplate retryTemplate;
+    private final AtomicLong lagNanos = new AtomicLong(0);
 
     public AccessLogConsumer(AccessLogRepository accessLogRepository,
                              CassandraOperations cassandraOperations,
-                             @Qualifier("accessLogRetryTemplate") RetryTemplate retryTemplate) {
+                             @Qualifier("accessLogRetryTemplate") RetryTemplate retryTemplate,
+                             MeterRegistry meterRegistry) {
         this.accessLogRepository = accessLogRepository;
         this.cassandraOperations = cassandraOperations;
         this.retryTemplate = retryTemplate;
+        TimeGauge.builder("shortener.log.consumer.lag", lagNanos, TimeUnit.NANOSECONDS,
+                        v -> (double) v.get())
+                .description("Lag between event creation and Cassandra write")
+                .register(meterRegistry);
     }
 
     @RabbitListener(queues = "url.access.log", ackMode = "MANUAL")
@@ -54,6 +66,7 @@ public class AccessLogConsumer {
                 cassandraOperations.execute(SimpleStatement.newInstance(
                         "UPDATE shortener.access_counts SET count = count + 1 WHERE short_code = ? AND day = ?",
                         event.getShortCode(), day));
+                lagNanos.set(Duration.between(event.getRequestTime(), Instant.now()).toNanos());
                 return null;
             });
             channel.basicAck(deliveryTag, false);
