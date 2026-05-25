@@ -119,3 +119,119 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  api-1:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-1
+    hostname: api-1
+    networks:
+      - shortener-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SHORTENER_SECRET_KEY: ${SHORTENER_SECRET_KEY:-change-me-in-prod}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      HOSTNAME: api-1
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
+      redis-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  api-2:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-2
+    hostname: api-2
+    networks:
+      - shortener-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SHORTENER_SECRET_KEY: ${SHORTENER_SECRET_KEY:-change-me-in-prod}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      HOSTNAME: api-2
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
+      redis-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  api-3:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-3
+    hostname: api-3
+    networks:
+      - shortener-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SHORTENER_SECRET_KEY: ${SHORTENER_SECRET_KEY:-change-me-in-prod}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      HOSTNAME: api-3
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
+      redis-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    networks:
+      - shortener-net
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+      api-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz | grep -q ok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
