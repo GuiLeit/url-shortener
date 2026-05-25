@@ -4,6 +4,7 @@ import com.shortener.event.AccessEventPublisher;
 import com.shortener.url.Url;
 import com.shortener.url.UrlRepository;
 import com.shortener.web.NotFoundException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,12 +28,14 @@ class RedirectServiceTest {
     @Mock UrlRepository urlRepository;
     @Mock AccessEventPublisher publisher;
 
+    SimpleMeterRegistry meterRegistry;
     RedirectService service;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        service = new RedirectService(redisTemplate, urlRepository, publisher, 604800L, 60L);
+        service = new RedirectService(redisTemplate, urlRepository, publisher, 604800L, 60L, meterRegistry);
     }
 
     @Test
@@ -103,5 +106,51 @@ class RedirectServiceTest {
         assertEquals("https://example.com", result);
         verify(urlRepository, never()).findById(any());
         verify(publisher).publish(any());
+    }
+
+    @Test
+    void negcache_hit_increments_cache_negative_and_notfound_counters() {
+        when(redisTemplate.hasKey("url:negcache:abc")).thenReturn(true);
+
+        assertThrows(NotFoundException.class, () ->
+            service.redirect("abc", "1.2.3.4", "TestAgent", null));
+
+        assertEquals(1.0, meterRegistry.counter("shortener.cache.hits", "type", "negative").count());
+        assertEquals(1.0, meterRegistry.counter("shortener.redirects", "result", "notfound").count());
+    }
+
+    @Test
+    void poscache_hit_increments_cache_positive_and_hit_counters() {
+        when(redisTemplate.hasKey("url:negcache:abc")).thenReturn(false);
+        when(valueOps.get("url:cache:abc")).thenReturn("https://example.com");
+
+        service.redirect("abc", "1.2.3.4", "TestAgent", null);
+
+        assertEquals(1.0, meterRegistry.counter("shortener.cache.hits", "type", "positive").count());
+        assertEquals(1.0, meterRegistry.counter("shortener.redirects", "result", "hit").count());
+    }
+
+    @Test
+    void db_hit_increments_cache_miss_and_miss_redirect_counters() {
+        when(redisTemplate.hasKey("url:negcache:abc")).thenReturn(false);
+        when(valueOps.get("url:cache:abc")).thenReturn(null);
+        when(valueOps.setIfAbsent(eq("url:lock:abc"), eq("1"), any())).thenReturn(true);
+        when(urlRepository.findById("abc")).thenReturn(
+            Optional.of(new Url("abc", "https://example.com", 1L, Instant.now())));
+
+        service.redirect("abc", "1.2.3.4", "TestAgent", null);
+
+        assertEquals(1.0, meterRegistry.counter("shortener.cache.misses").count());
+        assertEquals(1.0, meterRegistry.counter("shortener.redirects", "result", "miss").count());
+    }
+
+    @Test
+    void redirect_latency_timer_records_on_every_call() {
+        when(redisTemplate.hasKey("url:negcache:abc")).thenReturn(false);
+        when(valueOps.get("url:cache:abc")).thenReturn("https://example.com");
+
+        service.redirect("abc", "1.2.3.4", "TestAgent", null);
+
+        assertEquals(1L, meterRegistry.timer("shortener.redirect.latency").count());
     }
 }
