@@ -67,11 +67,13 @@ Observability: Prometheus scrapes /actuator/prometheus from every Spring replica
 ## Quick Start
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/<your-username>/url-shortener
 cd url-shortener
-cp .env.example .env          # edit SHORTENER_SECRET_KEY if desired
+cp .env.example .env          # defaults work out of the box; edit SHORTENER_SECRET_KEY if desired
 docker compose up -d --build
 docker compose ps             # wait until all services show "healthy"
+                              # Cassandra can take up to 90 s to initialise on first boot
+                              # If a service stays unhealthy: docker compose logs <service>
 ```
 
 The API is available at **http://localhost** (via Nginx).
@@ -148,6 +150,8 @@ Response `200 OK`:
 Rate limit: 5 req/s per IP, burst 10.
 
 ### Health
+
+`/healthz` is a lightweight endpoint served by the Spring Boot application confirming it is running. `/actuator/health` is the standard Spring Boot Actuator health check.
 
 ```bash
 curl http://localhost/healthz
