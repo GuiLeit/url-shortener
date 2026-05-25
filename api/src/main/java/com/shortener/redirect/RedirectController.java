@@ -1,13 +1,16 @@
 package com.shortener.redirect;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 
+@Validated
 @RestController
 public class RedirectController {
 
@@ -18,7 +21,7 @@ public class RedirectController {
     }
 
     @GetMapping("/{shortcode}")
-    public ResponseEntity<Void> redirect(@PathVariable String shortcode,
+    public ResponseEntity<Void> redirect(@PathVariable @Pattern(regexp = "[A-Za-z0-9]{1,11}") String shortcode,
                                          HttpServletRequest request) {
         String ip = extractIp(request);
         String userAgent = request.getHeader("User-Agent");
