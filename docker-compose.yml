@@ -1,2 +1,240 @@
-# Docker Compose services — populated in Step 2 (Docker Compose skeleton)
 version: "3.9"
+
+networks:
+  shortener-net:
+    driver: bridge
+
+volumes:
+  cassandra-data:
+  redis-data:
+
+services:
+
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra
+    networks:
+      - shortener-net
+    ports:
+      - "9042:9042"
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    environment:
+      CASSANDRA_CLUSTER_NAME: shortener-cluster
+      CASSANDRA_DC: datacenter1
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  cassandra-init:
+    image: cassandra:4.1
+    container_name: cassandra-init
+    networks:
+      - shortener-net
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./cassandra/init.cql:/init.cql:ro
+    command: cqlsh cassandra -f /init.cql
+    restart: "no"
+
+  redis:
+    image: redis:7.2
+    container_name: redis
+    networks:
+      - shortener-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  redis-init:
+    image: redis:7.2
+    container_name: redis-init
+    networks:
+      - shortener-net
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: redis-cli -h redis SET url:counter 250000 NX
+    restart: "no"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    networks:
+      - shortener-net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+    volumes:
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    networks:
+      - shortener-net
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - shortener-net
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api-1:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-1
+    hostname: api-1
+    networks:
+      - shortener-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SHORTENER_SECRET_KEY: ${SHORTENER_SECRET_KEY:-change-me-in-prod}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      HOSTNAME: api-1
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
+      redis-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  api-2:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-2
+    hostname: api-2
+    networks:
+      - shortener-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SHORTENER_SECRET_KEY: ${SHORTENER_SECRET_KEY:-change-me-in-prod}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      HOSTNAME: api-2
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
+      redis-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  api-3:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-3
+    hostname: api-3
+    networks:
+      - shortener-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SHORTENER_SECRET_KEY: ${SHORTENER_SECRET_KEY:-change-me-in-prod}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      HOSTNAME: api-3
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
+      redis-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    networks:
+      - shortener-net
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+      api-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz | grep -q ok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

@@ -4,3 +4,4 @@ build/
 .idea/
 .env
 out/
+load-tests/k6/shortcodes.json
