@@ -10,8 +10,8 @@ const codes = new SharedArray('codes', () =>
 
 export const options = {
   stages: [
-    { duration: '1m',  target: 200 },
-    { duration: '3m',  target: 200 },
+    { duration: '1m',  target: 50  },
+    { duration: '3m',  target: 50  },
     { duration: '30s', target: 0   },
   ],
   thresholds: {

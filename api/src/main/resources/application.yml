@@ -38,6 +38,9 @@ management:
     tags:
       application: url-shortener
       instance: ${HOSTNAME:unknown}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 ---
 spring:

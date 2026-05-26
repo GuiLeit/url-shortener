@@ -12,6 +12,7 @@ scrape_configs:
           - api-3:8080
 
   - job_name: rabbitmq
+    metrics_path: /metrics/per-object
     static_configs:
       - targets:
           - rabbitmq:15692
